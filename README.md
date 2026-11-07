@@ -1,42 +1,41 @@
 # Building Energy Consumption Anomaly Detection
 
-An unsupervised machine-learning project for identifying unusual electricity-meter behaviour and persistent changes in energy consumption patterns.
+An unsupervised machine-learning project for identifying unusual electricity-meter behaviour and persistent changes in hourly energy-consumption patterns.
 
-This repository contains two related implementations:
-
-- **Original implementation:** the initial pipeline and files retained in the repository root.
-- **Improved implementation:** a rebuilt, notebook-based analysis with expanded data-quality checks, chronological evaluation, feature engineering, model comparison, majority voting, and persistent change detection.
+This repository preserves the original implementation and provides a separately organised improved implementation on the `improved-energy-anomaly-detection` branch.
 
 ## Improved implementation
 
-The rebuilt analysis is being organised under these folders:
+The improved, end-to-end workflow is documented in the [Google Colab notebook](notebooks/Energy_anomaly_detection.ipynb).
 
-- `notebooks/` — Google Colab/Jupyter notebook containing the end-to-end analysis.
-- `data/` — dataset notes. The raw dataset is not included; see the data instructions.
-- `models/` — optional saved model artifacts and notes.
-- `results/` — prediction summaries and exported results.
-- `results/visualizations/` — project charts.
+| Folder | Contents |
+|---|---|
+| [`notebooks/`](notebooks/) | End-to-end notebook and instructions for running it in Google Colab |
+| [`data/`](data/) | Dataset structure, access, and preprocessing notes |
+| [`models/`](models/) | Detection methods, model settings, and limitations |
+| [`results/`](results/) | Test-set summary and interpretation |
+| [`results/visualizations/`](results/visualizations/) | Exported project charts |
 
 ### Dataset
 
-The analysis uses hourly electricity meter readings from the Building Data Genome Project 2 dataset. The working table contains a timestamp and individual meter columns. The rebuilt workflow selected 1,278 eligible meters after data-quality filtering.
+The analysis uses hourly electricity-meter readings from the Building Data Genome Project 2 dataset. The source table covers 1 January 2016 through 31 December 2017 and contains individual meter columns.
 
-The raw dataset is not stored in this repository. Refer to [data/README.md](data/README.md) for setup notes and dataset provenance.
+The raw dataset is not included in this repository. See [`data/README.md`](data/README.md) for dataset details and setup notes. The cleaned modelling dataset retained 1,280 eligible meters; two additional meters were excluded from model-specific analysis because their baseline scale was invalid, leaving 1,278 valid meters for the main model workflow.
 
 ### Methodology
 
-1. Inspect the time index, meter coverage, missingness, and constant readings.
-2. Remove fully empty and unsuitable meter columns.
-3. Interpolate short internal gaps while retaining original-missingness flags.
-4. Select eligible meters and engineer lag, rolling-window, deviation, and calendar features.
-5. Split the data chronologically into training and test periods.
-6. Train and compare Isolation Forest, Local Outlier Factor (LOF), and Robust Covariance.
-7. Combine model predictions using majority voting (at least two of three models).
-8. Detect persistent upward and downward changes relative to a robust training baseline.
+1. Inspect timestamps, meter coverage, missingness, and constant readings.
+2. Remove fully empty columns and exclude constant-zero meters.
+3. Interpolate short internal gaps while preserving original-missingness flags.
+4. Select eligible meters and engineer per-meter lag, rolling-statistic, deviation, and calendar features.
+5. Split the time series chronologically into training and test periods.
+6. Fit an Isolation Forest and benchmark Isolation Forest, Local Outlier Factor (LOF), and Robust Covariance (Elliptic Envelope).
+7. Combine the three benchmark predictions using majority voting (at least two of three models).
+8. Separately detect persistent upward and downward changes using a rolling 168-hour median and a robust training baseline.
 
-### Current rebuilt test results
+### Full-test benchmark results
 
-The full-test ensemble scored **4,452,047 observations** and flagged **168,957 observations (3.80%)** as anomalies.
+The three-model ensemble scored **4,452,047 observations** and flagged **168,957 observations (3.80%)** as anomalies.
 
 | Model | Anomaly count | Anomaly rate |
 |---|---:|---:|
@@ -45,21 +44,38 @@ The full-test ensemble scored **4,452,047 observations** and flagged **168,957 o
 | Robust Covariance | 190,468 | 4.28% |
 | Majority-voting ensemble | 168,957 | 3.80% |
 
-The ensemble models were fitted using a comparison sample of 20 training observations per meter. The full-test predictions therefore represent a **sample-trained benchmark**, not a model trained on the entire training dataset.
+The three ensemble estimators were fitted using a comparison sample of **20 training observations per meter** (25,560 rows across 1,278 meters). The full-test predictions therefore represent a sample-trained benchmark, not models trained on every available training observation.
 
-There are no ground-truth anomaly labels in this analysis. Anomaly rates are model-generated flags, not measured accuracy or confirmed equipment faults. Persistent-change flags are a separate analysis and should not be interpreted as point-anomaly labels.
+The dedicated Isolation Forest workflow used a separate sample of 150 observations per meter. See [`models/README.md`](models/README.md) for the distinction between these runs.
+
+### Visual results
+
+The [visualization image](results/visualizations/energy_anomaly_visualizations.png) contains:
+- A comparison of individual model and ensemble anomaly rates.
+- The majority-voting agreement distribution.
+- The top 15 meters by ensemble anomaly rate.
+- Monthly median reading trends for five selected meters, with the test-period boundary marked.
 
 ### Reproducibility
 
-The notebook and exported outputs will be added to the folders above. To reproduce the analysis, obtain the source dataset according to its terms, place it in your Google Drive, and follow the notebook's setup instructions. The notebook uses Google Colab and Drive paths; update paths if running elsewhere.
+To reproduce the analysis:
+
+1. Obtain the source dataset from its original provider and follow its licence and attribution requirements.
+2. Place the CSV-formatted source file in Google Drive at the path expected by the notebook (`/content/drive/MyDrive/electricity.txt`), or update the input path.
+3. Open [`notebooks/Energy_anomaly_detection.ipynb`](notebooks/Energy_anomaly_detection.ipynb) in Google Colab.
+4. Run the notebook cells in order. Intermediate feature and prediction Parquet files are stored in Google Drive during the workflow.
+
+See [`notebooks/README.md`](notebooks/README.md) for more detailed execution notes.
 
 ### Limitations
 
-- No labelled ground truth is available, so precision, recall, F1-score, and detection accuracy cannot be established.
-- The three-model ensemble uses a sampled training benchmark (20 observations per meter).
-- A high anomaly rate can reflect distribution shift, operational changes, data-quality issues, or unusual consumption; it does not prove a fault.
-- Meter readings are described as readings; units should only be stated if confirmed by the dataset documentation.
+- The analysis has no ground-truth anomaly labels. Precision, recall, F1-score, and validated detection accuracy cannot be established.
+- The three-model benchmark was fitted on a limited sample of 20 training observations per meter.
+- An anomaly flag indicates an observation that is unusual relative to the fitted model; it does not confirm an equipment fault or its cause.
+- Persistent-change detection is a separate analysis and should not be interpreted as the same thing as point-anomaly classification.
+- High anomaly rates may reflect distribution shifts, operational changes, data-quality issues, or unusual consumption.
+- Readings are described as meter readings; units are not stated because they have not been independently confirmed here.
 
 ## Original implementation
 
-The original scripts, notebook, model artifacts, and result files are retained in the repository root for reference. Their assumptions and outputs are distinct from the rebuilt notebook results above.
+The original scripts, notebook, model artifacts, and result files are retained in the repository root for reference. Their assumptions and outputs are distinct from the improved notebook-based workflow documented above.
