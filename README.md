@@ -1,94 +1,65 @@
-# Anomaly-Detection-project
+# Building Energy Consumption Anomaly Detection
 
-## Building Energy Anomaly Detection – How to Run
+An unsupervised machine-learning project for identifying unusual electricity-meter behaviour and persistent changes in energy consumption patterns.
 
-This project trains an anomaly detection pipeline on building energy data and exports predictions, charts, and summaries.
+This repository contains two related implementations:
 
-### 1. Prerequisites
+- **Original implementation:** the initial pipeline and files retained in the repository root.
+- **Improved implementation:** a rebuilt, notebook-based analysis with expanded data-quality checks, chronological evaluation, feature engineering, model comparison, majority voting, and persistent change detection.
 
-- **Python**: 3.9 or higher
-- **OS**: Tested on Windows 10
+## Improved implementation
 
-### 2. Create and activate a virtual environment (recommended)
+The rebuilt analysis is being organised under these folders:
 
-In a terminal from the `major` folder:
+- `notebooks/` — Google Colab/Jupyter notebook containing the end-to-end analysis.
+- `data/` — dataset notes. The raw dataset is not included; see the data instructions.
+- `models/` — optional saved model artifacts and notes.
+- `results/` — prediction summaries and exported results.
+- `results/visualizations/` — project charts.
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-```
+### Dataset
 
-If `python` points to Python 2 on your machine, use `python3` instead.
+The analysis uses hourly electricity meter readings from the Building Data Genome Project 2 dataset. The working table contains a timestamp and individual meter columns. The rebuilt workflow selected 1,278 eligible meters after data-quality filtering.
 
-### 3. Install dependencies
+The raw dataset is not stored in this repository. Refer to [data/README.md](data/README.md) for setup notes and dataset provenance.
 
-Still in the `major` folder:
+### Methodology
 
-```bash
-pip install -r requirement.txt
-```
+1. Inspect the time index, meter coverage, missingness, and constant readings.
+2. Remove fully empty and unsuitable meter columns.
+3. Interpolate short internal gaps while retaining original-missingness flags.
+4. Select eligible meters and engineer lag, rolling-window, deviation, and calendar features.
+5. Split the data chronologically into training and test periods.
+6. Train and compare Isolation Forest, Local Outlier Factor (LOF), and Robust Covariance.
+7. Combine model predictions using majority voting (at least two of three models).
+8. Detect persistent upward and downward changes relative to a robust training baseline.
 
-> Note: The file is named `requirement.txt` (singular) in this project.
+### Current rebuilt test results
 
-### 4. Prepare the input data
+The full-test ensemble scored **4,452,047 observations** and flagged **168,957 observations (3.80%)** as anomalies.
 
-By default, the script expects a preprocessed CSV named `feature_engineered_dataset.csv` in the `major` folder.
+| Model | Anomaly count | Anomaly rate |
+|---|---:|---:|
+| Isolation Forest | 287,895 | 6.47% |
+| Local Outlier Factor | 221,522 | 4.98% |
+| Robust Covariance | 190,468 | 4.28% |
+| Majority-voting ensemble | 168,957 | 3.80% |
 
-- **Option A (default)**: Keep your CSV as `feature_engineered_dataset.csv` and place it directly in the `major` folder.  
-- **Option B (custom path)**: If your data file or directory has a different path or name, open `model.py` and update the `DATA_PATH` variable:
+The ensemble models were fitted using a comparison sample of 20 training observations per meter. The full-test predictions therefore represent a **sample-trained benchmark**, not a model trained on the entire training dataset.
 
-```python
-DATA_PATH = "path/to/your_file_or_folder.csv"
-```
+There are no ground-truth anomaly labels in this analysis. Anomaly rates are model-generated flags, not measured accuracy or confirmed equipment faults. Persistent-change flags are a separate analysis and should not be interpreted as point-anomaly labels.
 
-The loader supports:
-- A **single CSV file** path, or
-- A **directory containing multiple CSVs** (it will concatenate them).
+### Reproducibility
 
-### 5. Run the pipeline
+The notebook and exported outputs will be added to the folders above. To reproduce the analysis, obtain the source dataset according to its terms, place it in your Google Drive, and follow the notebook's setup instructions. The notebook uses Google Colab and Drive paths; update paths if running elsewhere.
 
-From the `major` folder, with your virtual environment activated:
+### Limitations
 
-```bash
-python model.py
-```
+- No labelled ground truth is available, so precision, recall, F1-score, and detection accuracy cannot be established.
+- The three-model ensemble uses a sampled training benchmark (20 observations per meter).
+- A high anomaly rate can reflect distribution shift, operational changes, data-quality issues, or unusual consumption; it does not prove a fault.
+- Meter readings are described as readings; units should only be stated if confirmed by the dataset documentation.
 
-The script will:
-- Load and preprocess the data
-- Engineer time‑series features
-- Train three anomaly detection models (Isolation Forest, LOF, Robust Covariance)
-- Build an ensemble anomaly score
-- Generate plots and business insights
+## Original implementation
 
-### 6. Outputs
-
-After a successful run, check:
-
-- **`results/anomaly_predictions.csv`**: Main anomaly predictions with timestamps (and building IDs if present)
-- **`results/model_agreement.png`**: Model agreement heatmap
-- **`results/feature_importance.png`**: Top isolation forest feature importances
-- **`results/timeseries_anomalies.png`**: Sample electricity time series with flagged anomalies
-- **`results/vote_distribution.png`**: Distribution of anomaly votes across models
-- **`results/anomaly_by_hour.png`**: Anomaly rate by hour of day
-- **`results/anomaly_by_month.png`**: Anomaly rate by month
-- **`results/building_summary.csv`** (if `building_id` exists): Per‑building anomaly summary
-
-Trained model artifacts are saved under the **`models`** folder:
-
-- `models/scaler.pkl`
-- `models/isolation_forest.pkl`
-- `models/robust_covariance.pkl`
-
-### 7. Re-running with new data
-
-To run the analysis on a new dataset:
-
-1. Place the new CSV (or folder of CSVs) where you want.
-2. Update `DATA_PATH` in `model.py` to point to the new location.
-3. Re-run:
-
-```bash
-python model.py
-```
-
-New results will be written into the `results` folder, overwriting files with the same names.
+The original scripts, notebook, model artifacts, and result files are retained in the repository root for reference. Their assumptions and outputs are distinct from the rebuilt notebook results above.
